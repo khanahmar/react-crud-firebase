@@ -1,5 +1,6 @@
 import "./App.css"
 import React from "react"
+import { db } from "./firebase-config"
 import {
   collection,
   getDocs,
@@ -7,104 +8,103 @@ import {
   updateDoc,
   doc,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore"
-import { db } from "./firebase-config"
-import { async } from "@firebase/util"
 
-// Component
 function App() {
-  const [users, setUsers] = React.useState([])
-  const usersCollection = collection(db, "users")
-  const [name, setName] = React.useState("")
-  const [age, setAge] = React.useState(0)
-  const [checkIt, setCheckIt] = React.useState(false)
+  const [movies, setMovies] = React.useState([])
+  const [movieName, setMovieName] = React.useState("")
   const [currentId, setCurrentId] = React.useState("")
+  const movieCollection = collection(db, "movies")
+  const [isChecked, setIsChecked] = React.useState(false)
 
-  function updateItem(name, age, id) {
-    setCurrentId(id)
-    setCheckIt(true)
-    setName(name)
-    setAge(age)
-  }
+  React.useEffect(() => {
+    console.log(movies)
+  }, [movies])
 
-  async function updatingItem() {
-    const document = doc(db, "users", currentId)
-    const newFields = {
-      name: name,
-      age: Number.parseInt(age),
-      id: currentId,
-    }
-    await updateDoc(document, newFields)
-    console.log(document)
-    console.log(newFields)
-  }
-
-  async function deleteItem(id) {
-    const document = doc(db, "users", id)
-    await deleteDoc(document)
-  }
-
-  async function addUser() {
-    if (checkIt) {
-      updatingItem()
-      console.log("done")
-      setCheckIt(false)
+  async function addMovie() {
+    if (isChecked && movieName !== "") {
+      updateMovie()
     } else {
-      if (name !== "" && age !== 0) {
-        await addDoc(usersCollection, {
-          name: name,
-          age: Number.parseInt(age),
-        })
+      if (movieName !== "" && !isChecked) {
+        await addDoc(movieCollection, { name: movieName })
+        setMovieName("")
       }
     }
   }
 
+  const editMovie = (id, name) => {
+    setIsChecked(true)
+    setCurrentId(id)
+    setMovieName(name)
+  }
+
+  async function updateMovie() {
+    setIsChecked(false)
+    const document = doc(db, "movies", currentId)
+    await updateDoc(document, { name: movieName })
+    setMovieName("")
+  }
+
+  async function deleteMovie(id) {
+    const document = doc(db, "movies", id)
+    await deleteDoc(document)
+  }
+
   React.useEffect(() => {
-    const getUsers = async () => {
-      const data = await getDocs(usersCollection)
-      setUsers(
-        data.docs.map((doc) => {
-          return {
-            ...doc.data(),
-            id: doc.id,
-          }
+    const unsubscribe = onSnapshot(movieCollection, (snapshot) => {
+      setMovies(
+        snapshot.docs.map((doc) => {
+          return { data: doc.data(), id: doc.id }
         })
       )
+    })
+
+    return () => {
+      unsubscribe()
     }
-    getUsers()
-  }, [users])
+  }, [])
+
+  // async function getMovies() {
+  //   try {
+  //     const data = await getDocs(movieCollection)
+  //     setMovies(
+  //       data.docs.map((doc) => {
+  //         return { data: doc.data(), id: doc.id }
+  //       })
+  //     )
+  //   } catch (error) {
+  //     console.log(error)
+  //   }
+  // }
 
   return (
     <div className="App">
-      <div>
-        <input
-          onChange={(e) => setName(e.target.value)}
-          type="text"
-          placeholder="Name..."
-          name="name"
-          value={name}
-        />
-        <input
-          age="age"
-          type="number"
-          onChange={(e) => setAge(e.target.value)}
-          value={age}
-        />
-        <button onClick={addUser}>{checkIt ? "Update it" : "Add user"}</button>
-      </div>
-      <div>
-        {users.map((user) => {
-          return (
-            <div key={user.id}>
-              <h1>Name : {user.name}</h1>
-              <h1>Age : {user.age}</h1>
-              <button onClick={() => updateItem(user.name, user.age, user.id)}>
-                update item
-              </button>
-              <button onClick={() => deleteItem(user.id)}>Delete</button>
-            </div>
-          )
-        })}
+      <input
+        type="text"
+        onChange={(e) => setMovieName(e.target.value)}
+        value={movieName}
+        placeholder="Add a movie"
+      />
+      <button onClick={addMovie} type="submit">
+        {isChecked ? "Update" : "Add"}
+      </button>
+
+      <h1>Movies</h1>
+      <div className="movies">
+        <ul>
+          {movies.map((movie) => {
+            return (
+              <li key={movie.id}>
+                {movie.data.name}{" "}
+                <button onClick={() => editMovie(movie.id, movie.data.name)}>
+                  Edit
+                </button>
+                <button onClick={() => deleteMovie(movie.id)}>Delete 😥</button>
+              </li>
+            )
+          })}
+        </ul>
       </div>
     </div>
   )

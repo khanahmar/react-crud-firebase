@@ -4,8 +4,13 @@ input {
   margin: 4px;
 }
 
+body {
+  font-size: 2rem;
+}
+
 button {
-  font-size: 25px;
-  padding: 4px;
+  font-size: 20px;
+  padding: 2px;
   margin: 5px;
+  cursor: pointer;
 }
